@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>気象庁によるその場所の明日の天気予報</title>
+<style>
+#atai{
+    padding:0;
+    margin:0;
+    background:rgb(255, 255, 255);
+    height:auto;
+    }
+#map{
+    padding:0;
+    margin:0;
+    background:rgb(255, 255, 255);
+    height:auto;
+}
+span{
+    color:red;
+}
+</style>
+
+</head>
+<body>
+
+<div id="idokeido"></div>
+<div id="shikutyoson"></div>
+<div id="kisyotyo"></div>
+
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script>
+
+let lat;
+let lon;
+
+function mapsInit(position) {
+    //lat=緯度、lon=経度 を取得
+    lat = position.coords.latitude;
+    lon = position.coords.longitude;
+    
+    $("#idokeido").append("あなたのデバイスの緯度は"+lat+",  "+"経度は"+lon);
+    
+    //第一げっと
+    get("https://geoapi.heartrails.com/api/json?method=searchByGeoLocation&x="+lon+"&y="+lat)
+    .then(function(response) {
+        return JSON.parse(response);
+    })
+    .then(function(response) {
+        $("#shikutyoson").append("あなたは"+response.response.location[0].city+"にいます");
+        return response.response.location[0].city;
+    })
+    .then(function(shikutyoson){
+        console.log(shikutyoson);
+        //第二げっと
+        get("https://www.jma.go.jp/bosai/common/const/area.json")
+        .then(function(response){
+            console.log("市区町村",shikutyoson);
+            return JSON.parse(response);
+        })
+        .then(function(response){
+            console.log(response);
+            console.log("市区町村",shikutyoson);
+            let parent_code1;
+            let tenki_area_code;
+            let tenki_area_to_tenki_area_code = [];
+            for(let i =0;i<Object.values(Object.values(response.class20s)).length;i++){
+                if(Object.values(Object.values(response.class20s))[i].name == shikutyoson){
+                    parent_code1 = Object.values(Object.values(response.class20s))[i].parent;
+                    console.log(parent_code1);
+                }
+            }
+            for(let i =0;i<Object.keys(response.class15s).length;i++){
+                if(Object.keys(response.class15s)[i] == parent_code1){
+                    tenki_area_code = Object.values(response.class15s)[i].parent;
+                }
+            }
+            for(let i =0;i<Object.keys(response.class10s).length;i++){
+                if(Object.keys(response.class10s)[i] == tenki_area_code){
+                    tenki_area = Object.values(response.class10s)[i].parent;
+                }
+            }
+            console.log(tenki_area_code);
+            console.log(tenki_area);
+            tenki_area_to_tenki_area_code.push(tenki_area);
+            tenki_area_to_tenki_area_code.push(tenki_area_code);
+            console.log( tenki_area_to_tenki_area_code)
+            return tenki_area_to_tenki_area_code;
+        })
+        .then(function(tenki_area_to_tenki_area_code){
+            console.log(tenki_area_to_tenki_area_code);
+            console.log(tenki_area_to_tenki_area_code[0]);
+
+            function reqListener () {
+            const test = this.responseText;
+            const test_json = JSON.parse(test);
+         
+            for(let i= 0;i<test_json[0].timeSeries[0].areas.length;i++){
+                if(test_json[0].timeSeries[0].areas[i].area.code == tenki_area_to_tenki_area_code[1]){
+                    $("#kisyotyo").html("気象庁によるとその場所の明日の天気は<br><span>"+test_json[0].timeSeries[0].areas[i].weathers[1]+"</span><br>です。");
+                }
+            }
+            }
+            const rrr = tenki_area_to_tenki_area_code[0];
+            var oReq = new XMLHttpRequest();
+            oReq.addEventListener("load", reqListener);
+            oReq.open("GET", "https://www.jma.go.jp/bosai/forecast/data/forecast/"+rrr+".json");
+            oReq.send();
+        })
+    })
+};
+
+const set ={
+  enableHighAccuracy: true, //より高精度な位置を求める
+  maximumAge: 20000,        //最後の現在地情報取得が20秒以内であればその情報を再利用する設定
+  timeout: 10000            //10秒以内に現在地情報を取得できなければ、処理を終了
+};
+
+//2． 位置情報の取得に失敗した場合の処理
+function mapsError(error) {
+  let e = "";
+  if (error.code == 1) { //1＝位置情報取得が許可されてない（ブラウザの設定）
+    e = "位置情報が許可されてません";
+  }
+  if (error.code == 2) { //2＝現在地を特定できない
+    e = "現在位置を特定できません";
+  }
+  if (error.code == 3) { //3＝位置情報を取得する前にタイムアウトになった場合
+    e = "位置情報を取得する前にタイムアウトになりました";
+  }
+  alert("エラー：" + e);
+};
+
+function get(url) {
+   // Return a new promise.
+   return new Promise(function(resolve, reject) {
+     // Do the usual XHR stuff
+     var req = new XMLHttpRequest();
+     req.open('GET', url);
+ 
+     req.onload = function() {
+       // This is called even on 404 etc
+       // so check the status
+       if (req.status == 200) {
+         // Resolve the promise with the response text
+         resolve(req.response);
+       }
+       else {
+         // Otherwise reject with the status text
+         // which will hopefully be a meaningful error
+         reject(Error(req.statusText));
+       }
+     };
+ 
+     // Handle network errors
+     req.onerror = function() {
+       reject(Error("Network Error"));
+     };
+ 
+     // Make the request
+     req.send();
+   });
+ }
+ 
+ navigator.geolocation.getCurrentPosition(mapsInit, mapsError, set);
+
+
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+

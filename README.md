@@ -9,3 +9,5 @@
 <p>javascriptのPromiseで解決するとのことでしたが、その実装にもハマりました。</p>
 <h1>その他</h1>
 <p>Json,apiの利用に慣れるために地道に作業をしすぎました。</p>
+<h1>参考にしたサイト</h1>
+<p>https://yanor.net/wiki/?JavaScript/Promise/04.+XMLHttpRequest%E3%81%AEPromise%E5%8C%96</p>
